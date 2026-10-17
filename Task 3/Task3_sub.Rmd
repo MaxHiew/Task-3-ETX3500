@@ -1,0 +1,164 @@
+---
+title: "Task 3"
+author: "Ying Zheng Hiew (33903999)"
+date: "2026-10-12"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Part A**
+
+1.  Show that eigenvectors corresponding to distinct eigenvalues of A are orthogonal. (4 marks)
+
+```{r, echo=FALSE, out.width="100%",fig.align="center"}
+knitr::include_graphics("PartA(a).jpeg")
+```
+
+2.  Define... Show that Q\^TQ = I. Briefly explain what this tells you about Q. (4 marks)
+
+```{r, echo=FALSE, out.width="100%", fig.align="center"}
+knitr::include_graphics("PartA(b).jpg")
+```
+
+This shows me that Q is is an orthogonal matrix where the each column is orthonormal.Since Q\^TQ = I, Q\^-1 = Q\^T, hence QQ\^T = I as well. Q preserves lengths and angles, and acts to reflect or rotate. The columns of Q form an orthonormal basis of n coordinates that can take on any real numbers, made of eigenvectors A. Hence, this leads to A = Q\*Lambda\*Q\^T where Lamda = diag(Lambda_1, Lambda_2…, Lambda_n).
+
+3.  Using Q^T^Q = I and the following properties of determinants, show that det(Q) is either +1 or -1. (3 marks)
+
+```{r, echo=FALSE, out.width="100%",fig.align="center"}
+knitr::include_graphics("PartA(c).jpg")
+```
+
+4.  Consider the two orthogonal matrices. A data point x is transformed to z = Qx. (9 marks)
+
+    1.  Calculate the determinant of each matrix.
+
+    2.  Apply each transformation to the points... Sketch the original and transformed points.
+
+    3.  Describe each transformation geometrically. Relate your answers to the determinants.
+
+```{r, echo=FALSE,out.width="100%",fig.align="center"}
+knitr::include_graphics("PartA(d1).jpg")
+```
+
+```{r, echo=FALSE, out.width="100%", fig.align="center"}
+knitr::include_graphics("Part A(d2).jpg")
+```
+
+When Q1 is applied to x, the point rotates 90 degrees anti-clockwise. On the other hand when Q2 is applied to x, the point is reflected in the x-axis. This corresponds to with the determinants where det(Q1) = 1 which retains the orientation and orientation, conversely, det(Q2) = -1 which acts as a reflection. X3 shows that both Q1 and Q2 retains the angle and distance (pyhtagorus theorem, distance = sqrt (1\^2 + 1 \^2) = sqrt(2)) from the origin.
+
+# Part B
+
+1.  Calculate the population covariance matrix of Y(i). (3 marks)
+
+    ```{r}
+    lambda <- matrix(c(0.8,0.1, 0.7,0.2, 0.9,0.1, 0.8,0,
+                        0.1,0.8, 0.2,0.7, 0.1,0.9, 0,0.8),
+                      ncol = 2, byrow = TRUE)
+    cov_f <- matrix(c(1,0.6,0.6,1), nrow = 2)
+    cov_e <- diag(8)
+
+    cov_pop <- lambda %*% cov_f %*% t(lambda) + cov_e
+    cov_pop
+    ```
+
+2.  Suppose we have generated n = 500 observations from the above model using the following code:
+
+```{r}
+# install this package if you haven't used it before
+library(mvtnorm) 
+library(tidyverse)
+library(ggrepel)
+
+set.seed(2026)
+n <- 500
+factors <- rmvnorm(n = n, mean = c(0, 0),
+                   sigma = cov_f)
+errors <- rmvnorm(n = n, mean = rep(0, 8),
+                  sigma = cov_e)
+
+y <- factors %*% t(lambda) + errors
+y <- as.data.frame(y)
+y
+```
+
+Calculate the sample covariance matrix and compare it with the population covariance matrix. (3 marks)
+
+```{r}
+# sample covariance
+sample_cov <- cov(y)
+
+# comparison
+round(sample_cov - cov_pop, 3)
+```
+
+3.  Perform exploratory factor analysis using
+
+    - no rotation
+
+    - varimax rotation
+
+    - promax rotation
+
+    for r = 2. (3 marks)
+
+    ```{r}
+    fa_no <- factanal(y, factors = 2, rotation = "none")
+    fa_var <- factanal(y, factors = 2, rotation = "varimax")
+    fa_pro  <- factanal(y, factors = 2, rotation = "promax")
+
+    print(fa_no, digits = 3, cutoff = 0)
+    print(fa_var, digits = 3, cutoff = 0)
+    print(fa_pro,  digits = 3, cutoff = 0)
+    ```
+
+4.  Create three scatter plots to visualise the estimated factor loadings from the above choices of the rotation matrix. (6 marks)
+
+```{r}
+# A function to extract factor loadings and covert it to a tibble
+loading_df <- function(obj, rotation) {
+  # arguments:
+  # obj: The fitted factor object
+  # rotation: name of the rotation used
+  obj$loadings |>  
+    unclass() |> 
+    as.data.frame() |> 
+    rownames_to_column() |> 
+    as_tibble() |> 
+    mutate(rotation = rotation)
+}
+```
+
+```{r}
+# combine all three fits into one tibble
+loadings_all <- bind_rows(
+  loading_df(fa_no,    "None"),
+  loading_df(fa_var, "Varimax"),
+  loading_df(fa_pro,  "Promax")
+) |>
+  rename(variable = rowname) |>
+  mutate(rotation = factor(rotation, levels = c("None", "Varimax", "Promax")))
+
+# scatter plot: Factor1 vs Factor2, faceted by rotation
+ggplot(loadings_all, aes(x = Factor1, y = Factor2, label = variable)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_point(size = 2, colour = "steelblue") +
+  geom_text_repel(size = 3) +
+  facet_wrap(~ rotation) +
+  coord_fixed(xlim = c(-0.5, 1), ylim = c(-0.5, 1)) +
+  labs(title = "Estimated factor loadings under three rotations (r = 2)",
+       x = "Loading on Factor 1", y = "Loading on Factor 2") +
+  theme_bw()
+
+```
+
+5.  Describe how the loading patterns change across the three solutions. (6 marks)
+
+When there is no rotation, the arrows are mostly pointing towards factor1 (since the scores mostly shows 0.55 to 0.65) with a very slight split on factor2 where V1-V4 is negative and v5 to V8 is positive. However, it does not give meaningful interpretation as it seems factor 1 takes everything into account. In varimax rotation, the axes are rotated to preserve orthogonality and attempt to produce 2 clusters. Now V1 to V4 leans towards factor 2 (y-axis) while V5 to V8 lean towards factor 1 (x-axis), which produce some meaningful interpretation as there is a semi-distinct 2 clusters. In promax rotation, the clusters move towards the axis more and shows 2 distinct clusters: V1 to V4 are all on factor 2 (y-axis) with slight negative loadings on factor 1, and v5 to v8 are all on factor 1 (x-axis) with slight negative loadings on factor 2.
+
+6.  Which rotation most clearly reveals the two groups of variables, and why is allowing correlated factors appropriate here? (4 marks)
+
+The promax rotation clearly reveals the 2 groups of variables: v1 to v4 on factor 2 and v5 to v8 on factor 1. Allowing correlated factors is appropriate here as the data generated has (given) correlation of 0.6 between factor 1 and 2, which matches with promax as it assumes the 2 factors to be correlated (oblique strucuture) and apply necessary transformations on the arrows rather than forcing a perpendicular (varimax) rotation.
